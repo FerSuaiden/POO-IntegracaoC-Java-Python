@@ -10,13 +10,14 @@ def handle_client(client_socket):
 
         response = process_request(request)
         
-        # Ensure the complete response is sent including the end-of-message token
-        client_socket.sendall((response + "<END_OF_MESSAGE>").encode())
+        # Debug print for response
+        print(f"Sending response: {response}")
+
+        client_socket.sendall((response + "<END_OF_MESSAGE>\n").encode())
     except Exception as e:
         client_socket.sendall(f"Error: {str(e)}".encode())
     finally:
         client_socket.close()
-
 
 def process_request(request):
     args = request.split(';')
@@ -25,23 +26,19 @@ def process_request(request):
     if command == "load":
         _, csv_file, bin_file = args
 
-        # Ensure we only use filenames, not full paths
         csv_file = os.path.basename(csv_file.strip())
         bin_file = os.path.basename(bin_file.strip())
 
         print(f"Loading CSV: {csv_file} to Binary: {bin_file}")
 
-        # First, execute the main program
         try:
             process = subprocess.Popen(["./programaTrab"], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-            # Send the remaining commands as input to the process
             command_input = f"1 {csv_file} {bin_file}\n"
             stdout, stderr = process.communicate(input=command_input)
 
             if process.returncode != 0:
                 return stderr
-            
-            # Now, call listarRegistros to get the content of the binary file
+
             process = subprocess.Popen(["./programaTrab"], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
             list_command_input = f"2 {bin_file}\n"
             list_stdout, list_stderr = process.communicate(input=list_command_input)
@@ -113,8 +110,6 @@ def process_request(request):
 
     else:
         return "Invalid command"
-
-
 
 def main():
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

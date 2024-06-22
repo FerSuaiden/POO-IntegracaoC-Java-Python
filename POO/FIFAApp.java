@@ -1,11 +1,13 @@
 import javax.swing.*;
+import java.awt.*;
 import java.awt.event.*;
 import java.net.Socket;
 import java.io.*;
 
 public class FIFAApp extends JFrame {
     private JTextField idField, ageField, nameField, nationalityField, clubField;
-    private JTextArea resultArea;
+    private JPanel playerPanel;
+    private JLabel selectedPlayerLabel;
     private Socket socket;
     private PrintWriter out;
     private BufferedReader in;
@@ -53,10 +55,15 @@ public class FIFAApp extends JFrame {
         searchButton.addActionListener(e -> new Thread(() -> searchPlayers()).start());
         add(searchButton);
 
-        // Results Area
-        resultArea = new JTextArea(10, 40);
-        resultArea.setEditable(false);
-        add(new JScrollPane(resultArea));
+        // Player Panel
+        playerPanel = new JPanel(new GridBagLayout());
+        JScrollPane scrollPane = new JScrollPane(playerPanel);
+        scrollPane.setPreferredSize(new Dimension(580, 200));
+        add(scrollPane);
+
+        // Selected Player Label
+        selectedPlayerLabel = new JLabel("Selected Player: ");
+        add(selectedPlayerLabel);
 
         // Connect to Server
         connectToServer();
@@ -73,9 +80,9 @@ public class FIFAApp extends JFrame {
             try {
                 String response = in.readLine();
                 if (response != null) {
-                    SwingUtilities.invokeLater(() -> resultArea.setText("Binary file created: " + currentBinFileName));
+                    SwingUtilities.invokeLater(() -> selectedPlayerLabel.setText("Binary file created: " + currentBinFileName));
                 } else {
-                    SwingUtilities.invokeLater(() -> resultArea.setText("Failed to create binary file."));
+                    SwingUtilities.invokeLater(() -> selectedPlayerLabel.setText("Failed to create binary file."));
                 }
             } catch (IOException e) {
                 e.printStackTrace();
@@ -89,50 +96,130 @@ public class FIFAApp extends JFrame {
             try {
                 StringBuilder response = new StringBuilder();
                 String line;
+                boolean isFirstLine = true;
+                Player player = null;
 
-                // Read lines until the end-of-message token is encountered
-                while ((line = in.readLine()) != null) {
-                    if (line.equals("<END_OF_MESSAGE>")) {
-                        break;
+                // Clear the player panel
+                SwingUtilities.invokeLater(() -> playerPanel.removeAll());
+
+                while ((line = in.readLine()) != null && !line.equals("<END_OF_MESSAGE>")) {
+                    if (line.startsWith("Nome do Jogador: ")) {
+                        if (!isFirstLine) {
+                            Player finalPlayer = player;
+                            SwingUtilities.invokeLater(() -> addPlayerToPanel(finalPlayer));
+                        }
+                        player = new Player(line.substring(16), "", "");
+                        isFirstLine = false;
+                    } else if (line.startsWith("Nacionalidade do Jogador: ")) {
+                        if (player != null) {
+                            player = new Player(player.getName(), line.substring(25), player.getClub());
+                        }
+                    } else if (line.startsWith("Clube do Jogador: ")) {
+                        if (player != null) {
+                            player = new Player(player.getName(), player.getNationality(), line.substring(18));
+                        }
                     }
-                    response.append(line).append("\n");
                 }
-                
-                SwingUtilities.invokeLater(() -> resultArea.setText(response.toString()));
+                if (player != null) {
+                    Player finalPlayer = player;
+                    SwingUtilities.invokeLater(() -> addPlayerToPanel(finalPlayer));
+                }
+
+                SwingUtilities.invokeLater(() -> playerPanel.revalidate());
+                SwingUtilities.invokeLater(() -> playerPanel.repaint());
             } catch (IOException e) {
                 e.printStackTrace();
             }
         } else {
-            SwingUtilities.invokeLater(() -> resultArea.setText("No binary file loaded. Please load a CSV file first."));
+            SwingUtilities.invokeLater(() -> selectedPlayerLabel.setText("No binary file loaded. Please load a CSV file first."));
         }
     }
 
+    private void addPlayerToPanel(Player player) {
+        JButton playerButton = new JButton(player.getName());
+        playerButton.addActionListener(e -> selectedPlayerLabel.setText("Selected Player: " + player.getName()));
 
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.gridx = 0;
+        gbc.gridy = GridBagConstraints.RELATIVE;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.weightx = 1.0;
 
+        playerPanel.add(playerButton, gbc);
+    }
 
-    private void searchPlayers() {
-        if (currentBinFileName != null) {
-            String id = idField.getText();
-            String age = ageField.getText();
-            String name = nameField.getText();
-            String nationality = nationalityField.getText();
-            String club = clubField.getText();
+private void searchPlayers() {
+    if (currentBinFileName != null) {
+        String id = idField.getText().trim();
+        String age = ageField.getText().trim();
+        String name = nameField.getText().trim();
+        String nationality = nationalityField.getText().trim();
+        String club = clubField.getText().trim();
 
-            out.println("search;" + currentBinFileName + ";" + id + ";" + age + ";" + name + ";" + nationality + ";" + club);
-            try {
-                StringBuilder response = new StringBuilder();
-                String line;
-                while ((line = in.readLine()) != null && !line.isEmpty()) {
-                    response.append(line).append("\n");
+        StringBuilder searchCommand = new StringBuilder("search;" + currentBinFileName + ";1");
+
+        if (!id.isEmpty()) {
+            searchCommand.append(" id ").append(id);
+        }
+        if (!age.isEmpty()) {
+            searchCommand.append(" idade ").append(age);
+        }
+        if (!name.isEmpty()) {
+            searchCommand.append(" nome \"").append(name).append("\"");
+        }
+        if (!nationality.isEmpty()) {
+            searchCommand.append(" nacionalidade \"").append(nationality).append("\"");
+        }
+        if (!club.isEmpty()) {
+            searchCommand.append(" clube \"").append(club).append("\"");
+        }
+
+        out.println(searchCommand.toString());
+        try {
+            StringBuilder response = new StringBuilder();
+            String line;
+            boolean isFirstLine = true;
+            Player player = null;
+
+            // Clear the player panel
+            SwingUtilities.invokeLater(() -> playerPanel.removeAll());
+
+            while ((line = in.readLine()) != null && !line.equals("<END_OF_MESSAGE>")) {
+                if (line.startsWith("Nome do Jogador: ")) {
+                    if (!isFirstLine) {
+                        Player finalPlayer = player;
+                        SwingUtilities.invokeLater(() -> addPlayerToPanel(finalPlayer));
+                    }
+                    player = new Player(line.substring(16), "", "");
+                    isFirstLine = false;
+                } else if (line.startsWith("Nacionalidade do Jogador: ")) {
+                    if (player != null) {
+                        player = new Player(player.getName(), line.substring(25), player.getClub());
+                    }
+                } else if (line.startsWith("Clube do Jogador: ")) {
+                    if (player != null) {
+                        player = new Player(player.getName(), player.getNationality(), line.substring(18));
+                    }
                 }
-                SwingUtilities.invokeLater(() -> resultArea.setText(response.toString()));
-            } catch (IOException e) {
-                e.printStackTrace();
             }
-        } else {
-            SwingUtilities.invokeLater(() -> resultArea.setText("No binary file loaded. Please load a CSV file first."));
+            if (player != null) {
+                Player finalPlayer = player;
+                SwingUtilities.invokeLater(() -> addPlayerToPanel(finalPlayer));
+            }
+
+            SwingUtilities.invokeLater(() -> {
+                playerPanel.revalidate();
+                playerPanel.repaint();
+            });
+        } catch (IOException e) {
+            e.printStackTrace();
         }
+    } else {
+        SwingUtilities.invokeLater(() -> selectedPlayerLabel.setText("No binary file loaded. Please load a CSV file first."));
     }
+}
+
+
 
     private void connectToServer() {
         try {
@@ -146,5 +233,36 @@ public class FIFAApp extends JFrame {
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> new FIFAApp().setVisible(true));
+    }
+}
+
+class Player {
+    private String name;
+    private String nationality;
+    private String club;
+
+    public Player(String name, String nationality, String club) {
+        this.name = name;
+        this.nationality = nationality;
+        this.club = club;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public String getNationality() {
+        return nationality;
+    }
+
+    public String getClub() {
+        return club;
+    }
+
+    @Override
+    public String toString() {
+        return "Nome do Jogador: " + name + "\n" +
+               "Nacionalidade do Jogador: " + nationality + "\n" +
+               "Clube do Jogador: " + club;
     }
 }
