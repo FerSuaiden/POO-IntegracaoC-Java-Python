@@ -20,13 +20,13 @@ public class FIFAApp extends JFrame {
         JMenuBar menuBar = new JMenuBar();
         JMenu fileMenu = new JMenu("File");
         JMenuItem loadItem = new JMenuItem("Load FIFA File");
-        loadItem.addActionListener(e -> new Thread(() -> loadFile()).start());
+        loadItem.addActionListener(e -> new Thread(this::loadFile).start());
         fileMenu.add(loadItem);
         menuBar.add(fileMenu);
         setJMenuBar(menuBar);
 
         JMenuItem listPlayersItem = new JMenuItem("List All Players");
-        listPlayersItem.addActionListener(e -> new Thread(() -> listAllPlayers()).start());
+        listPlayersItem.addActionListener(e -> new Thread(this::listAllPlayers).start());
         fileMenu.add(listPlayersItem);
 
         // Search Fields
@@ -36,20 +36,20 @@ public class FIFAApp extends JFrame {
         nationalityField = new JTextField(10);
         clubField = new JTextField(10);
 
-        add(new JLabel("ID:"));
+        add(new JLabel("id:"));
         add(idField);
-        add(new JLabel("Age:"));
+        add(new JLabel("idade:"));
         add(ageField);
-        add(new JLabel("Name:"));
+        add(new JLabel("nome:"));
         add(nameField);
-        add(new JLabel("Nationality:"));
+        add(new JLabel("nacionalidade:"));
         add(nationalityField);
-        add(new JLabel("Club:"));
+        add(new JLabel("clube:"));
         add(clubField);
 
         // Search Button
-        JButton searchButton = new JButton("Search");
-        searchButton.addActionListener(e -> new Thread(() -> searchPlayers()).start());
+        JButton searchButton = new JButton("buscar");
+        searchButton.addActionListener(e -> new Thread(this::searchPlayers).start());
         add(searchButton);
 
         // Results Area
@@ -65,13 +65,15 @@ public class FIFAApp extends JFrame {
         JFileChooser fileChooser = new JFileChooser();
         int result = fileChooser.showOpenDialog(this);
         if (result == JFileChooser.APPROVE_OPTION) {
-            String csvFileName = fileChooser.getSelectedFile().getName();
-            currentBinFileName = csvFileName.replace(".csv", ".bin");
-
-            out.println("load;" + csvFileName + ";" + currentBinFileName);
+            String csvFilePath = fileChooser.getSelectedFile().getAbsolutePath();
+            currentBinFileName = new File(csvFilePath).getParent() + "/" + new File(csvFilePath).getName().replace(".csv", ".bin");
+    
+            System.out.println("Sending load command to server with CSV file: " + csvFilePath);
+            out.println("load;" + csvFilePath + ";" + currentBinFileName);
             try {
                 String response = in.readLine();
-                if (response != null) {
+                System.out.println("Received response from server: " + response);
+                if (response != null && response.equals("Binary file created successfully.")) {
                     SwingUtilities.invokeLater(() -> resultArea.setText("Binary file created: " + currentBinFileName));
                 } else {
                     SwingUtilities.invokeLater(() -> resultArea.setText("Failed to create binary file."));
@@ -80,23 +82,21 @@ public class FIFAApp extends JFrame {
                 e.printStackTrace();
             }
         }
-    }
+    }    
 
     private void listAllPlayers() {
         if (currentBinFileName != null) {
+            System.out.println("Sending list command to server with binary file: " + currentBinFileName);
             out.println("list;" + currentBinFileName);
             try {
                 StringBuilder response = new StringBuilder();
                 String line;
-
-                // Read lines until the end-of-message token is encountered
                 while ((line = in.readLine()) != null) {
                     if (line.equals("<END_OF_MESSAGE>")) {
                         break;
                     }
                     response.append(line).append("\n");
                 }
-                
                 SwingUtilities.invokeLater(() -> resultArea.setText(response.toString()));
             } catch (IOException e) {
                 e.printStackTrace();
@@ -106,9 +106,6 @@ public class FIFAApp extends JFrame {
         }
     }
 
-
-
-
     private void searchPlayers() {
         if (currentBinFileName != null) {
             String id = idField.getText();
@@ -117,13 +114,18 @@ public class FIFAApp extends JFrame {
             String nationality = nationalityField.getText();
             String club = clubField.getText();
 
+            System.out.println("Sending search command to server with parameters: id=" + id + ", age=" + age + ", name=" + name + ", nationality=" + nationality + ", club=" + club);
             out.println("search;" + currentBinFileName + ";" + id + ";" + age + ";" + name + ";" + nationality + ";" + club);
             try {
                 StringBuilder response = new StringBuilder();
                 String line;
-                while ((line = in.readLine()) != null && !line.isEmpty()) {
+                while ((line = in.readLine()) != null) {
+                    if (line.equals("<END_OF_MESSAGE>")) {
+                        break;
+                    }
                     response.append(line).append("\n");
                 }
+                System.out.println("Received response from server: " + response.toString());
                 SwingUtilities.invokeLater(() -> resultArea.setText(response.toString()));
             } catch (IOException e) {
                 e.printStackTrace();
@@ -138,6 +140,7 @@ public class FIFAApp extends JFrame {
             socket = new Socket("localhost", 12345);
             out = new PrintWriter(socket.getOutputStream(), true);
             in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+            System.out.println("Connected to server.");
         } catch (IOException e) {
             e.printStackTrace();
         }
