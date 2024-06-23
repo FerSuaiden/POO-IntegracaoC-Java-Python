@@ -52,6 +52,11 @@ public class FIFAApp extends JFrame {
         searchButton.addActionListener(e -> new Thread(this::searchPlayers).start());
         add(searchButton);
 
+        // Remove Button
+        JButton removeButton = new JButton("remover");
+        removeButton.addActionListener(e -> new Thread(this::removePlayers).start());
+        add(removeButton);
+
         // Results Area
         resultArea = new JTextArea(10, 40);
         resultArea.setEditable(false);
@@ -66,23 +71,25 @@ public class FIFAApp extends JFrame {
         int result = fileChooser.showOpenDialog(this);
         if (result == JFileChooser.APPROVE_OPTION) {
             String csvFilePath = fileChooser.getSelectedFile().getAbsolutePath();
-            currentBinFileName = new File(csvFilePath).getParent() + "/" + new File(csvFilePath).getName().replace(".csv", ".bin");
-    
-            System.out.println("Sending load command to server with CSV file: " + csvFilePath);
+            currentBinFileName = csvFilePath.replace(".csv", ".bin");
+
             out.println("load;" + csvFilePath + ";" + currentBinFileName);
             try {
                 String response = in.readLine();
-                System.out.println("Received response from server: " + response);
-                if (response != null && response.equals("Binary file created successfully.")) {
-                    SwingUtilities.invokeLater(() -> resultArea.setText("Binary file created: " + currentBinFileName));
+                if (response != null) {
+                    SwingUtilities.invokeLater(() -> {
+                        resultArea.setText("Binary file created: " + currentBinFileName);
+                    });
                 } else {
-                    SwingUtilities.invokeLater(() -> resultArea.setText("Failed to create binary file."));
+                    SwingUtilities.invokeLater(() -> {
+                        resultArea.setText("Failed to create binary file.");
+                    });
                 }
             } catch (IOException e) {
                 e.printStackTrace();
             }
         }
-    }    
+    }
 
     private void listAllPlayers() {
         if (currentBinFileName != null) {
@@ -125,8 +132,32 @@ public class FIFAApp extends JFrame {
                     }
                     response.append(line).append("\n");
                 }
-                System.out.println("Received response from server: " + response.toString());
                 SwingUtilities.invokeLater(() -> resultArea.setText(response.toString()));
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        } else {
+            SwingUtilities.invokeLater(() -> resultArea.setText("No binary file loaded. Please load a CSV file first."));
+        }
+    }
+
+    private void removePlayers() {
+        if (currentBinFileName != null) {
+            String id = idField.getText();
+            String age = ageField.getText();
+            String name = nameField.getText();
+            String nationality = nationalityField.getText();
+            String club = clubField.getText();
+
+            System.out.println("Sending remove command to server with parameters: id=" + id + ", age=" + age + ", name=" + name + ", nationality=" + nationality + ", club=" + club);
+            out.println("remove;" + currentBinFileName + ";" + id + ";" + age + ";" + name + ";" + nationality + ";" + club);
+            try {
+                String response = in.readLine();
+                if (response != null && response.equals("Player removed successfully.")) {
+                    SwingUtilities.invokeLater(() -> resultArea.setText("Player removed successfully."));
+                } else {
+                    SwingUtilities.invokeLater(() -> resultArea.setText("Failed to remove player."));
+                }
             } catch (IOException e) {
                 e.printStackTrace();
             }
