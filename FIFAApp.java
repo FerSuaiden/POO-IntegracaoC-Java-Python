@@ -285,28 +285,40 @@ public class FIFAApp extends JFrame {
 
     private void removePlayer() {
         if (selectedPlayer != null && currentBinFileName != null) {
-            String command = String.format("remove;%s;%s;1 nome \"%s\"", 
+            String command = String.format("remove;%s;%s;1;nome;\"%s\"", 
                 currentBinFileName, 
                 currentBinFileName.replace(".bin", ".idx"), 
                 selectedPlayer.getName());
-
+    
             out.println(command);
             try {
-                String response = in.readLine();
-                if (response != null && response.equals("OK")) {
+                // Read the response from the server
+                StringBuilder responseBuilder = new StringBuilder();
+                String responseLine;
+                while ((responseLine = in.readLine()) != null) {
+                    responseBuilder.append(responseLine);
+                    // Check for the end of message indicator
+                    if (responseLine.contains("<END_OF_MESSAGE>")) {
+                        break;
+                    }
+                }
+    
+                String response = responseBuilder.toString();
+                if (response.contains("OK") || !response.contains("Error")) {
                     SwingUtilities.invokeLater(() -> {
                         playerPanel.removeAll();
                         listAllPlayers();
                         selectedPlayerLabel.setText("Jogador removido: " + selectedPlayer.getName());
                     });
                 } else {
-                    SwingUtilities.invokeLater(() -> selectedPlayerLabel.setText("Falha em remover jogador."));
+                    SwingUtilities.invokeLater(() -> selectedPlayerLabel.setText("Falha em remover jogador. Resposta: " + response));
                 }
             } catch (IOException e) {
                 e.printStackTrace();
+                SwingUtilities.invokeLater(() -> selectedPlayerLabel.setText("Erro de comunicação com o servidor."));
             }
         }
-    }
+    }    
 
     private void connectToServer() {
         try {

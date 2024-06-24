@@ -77,7 +77,7 @@ def process_request(request):
         index_file = os.path.basename(index_file.strip())
         try:
             process = subprocess.Popen(["./programaTrab"], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-            removal_cmd = f"5 {bin_file} {index_file} {num_removals} {' '.join(removal_fields)}\n"
+            removal_cmd = f"5 {bin_file} {index_file} {num_removals} {len(removal_fields)} {' '.join(removal_fields)}\n"
             stdout, stderr = process.communicate(input=removal_cmd)
             return stdout if process.returncode == 0 else stderr
         except Exception as e:
