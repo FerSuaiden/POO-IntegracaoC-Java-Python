@@ -59,7 +59,6 @@ def process_request(request):
         except Exception as e:
             return f"Error: {str(e)}"
 
-            
     elif command == "create_index":
         bin_file, index_file, option = args[1:]
         bin_file = os.path.basename(bin_file.strip())
@@ -92,6 +91,17 @@ def process_request(request):
             process = subprocess.Popen(["./programaTrab"], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
             insertion_cmd = f"6 {bin_file} {index_file} {num_insertions} {' '.join(insertion_fields)}\n"
             stdout, stderr = process.communicate(input=insertion_cmd)
+            return stdout if process.returncode == 0 else stderr
+        except Exception as e:
+            return f"Error: {str(e)}"
+
+    elif command == "edit":
+        bin_file, old_name, new_name, new_nationality, new_club = args[1:]
+        bin_file = os.path.basename(bin_file.strip())
+        try:
+            process = subprocess.Popen(["./programaTrab"], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            edit_cmd = f"7 {bin_file} \"{old_name}\" \"{new_name}\" \"{new_nationality}\" \"{new_club}\"\n"
+            stdout, stderr = process.communicate(input=edit_cmd)
             return stdout if process.returncode == 0 else stderr
         except Exception as e:
             return f"Error: {str(e)}"
