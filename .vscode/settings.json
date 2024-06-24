@@ -1,5 +1,6 @@
 {
     "files.associations": {
-        "funcoes_fornecidas.h": "c"
+        "funcoes_fornecidas.h": "c",
+        "funcionalidades.h": "c"
     }
 }

@@ -3,6 +3,44 @@ import subprocess
 import threading
 import os
 
+class RemovedPlayerNode:
+    def __init__(self, player_id):
+        self.player_id = player_id
+        self.next = None
+
+class RemovedPlayersList:
+    def __init__(self):
+        self.head = None
+
+    def add(self, player_id):
+        new_node = RemovedPlayerNode(player_id)
+        new_node.next = self.head
+        self.head = new_node
+
+    def contains(self, player_id):
+        current = self.head
+        while current:
+            if current.player_id == player_id:
+                return True
+            current = current.next
+        return False
+
+    def remove(self, player_id):
+        current = self.head
+        previous = None
+        while current:
+            if current.player_id == player_id:
+                if previous:
+                    previous.next = current.next
+                else:
+                    self.head = current.next
+                return
+            previous = current
+            current = current.next
+
+    def is_empty(self):
+        return self.head is None
+
 def handle_client(client_socket):
     try:
         while True:
@@ -60,12 +98,12 @@ def process_request(request):
             return f"Error: {str(e)}"
 
     elif command == "create_index":
-        bin_file, index_file, option = args[1:]
+        bin_file, index_file = args[1:]
         bin_file = os.path.basename(bin_file.strip())
         index_file = os.path.basename(index_file.strip())
         try:
             process = subprocess.Popen(["./programaTrab"], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-            command_input = f"4 {bin_file} {index_file} {option}\n"
+            command_input = f"4 {bin_file} {index_file}\n"
             stdout, stderr = process.communicate(input=command_input)
             return stdout if process.returncode == 0 else stderr
         except Exception as e:
@@ -77,7 +115,7 @@ def process_request(request):
         index_file = os.path.basename(index_file.strip())
         try:
             process = subprocess.Popen(["./programaTrab"], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-            removal_cmd = f"5 {bin_file} {index_file} {num_removals} {len(removal_fields)} {' '.join(removal_fields)}\n"
+            removal_cmd = f"5 {bin_file} {index_file} {num_removals} {' '.join(removal_fields)}\n"
             stdout, stderr = process.communicate(input=removal_cmd)
             return stdout if process.returncode == 0 else stderr
         except Exception as e:
@@ -91,17 +129,6 @@ def process_request(request):
             process = subprocess.Popen(["./programaTrab"], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
             insertion_cmd = f"6 {bin_file} {index_file} {num_insertions} {' '.join(insertion_fields)}\n"
             stdout, stderr = process.communicate(input=insertion_cmd)
-            return stdout if process.returncode == 0 else stderr
-        except Exception as e:
-            return f"Error: {str(e)}"
-
-    elif command == "edit":
-        bin_file, old_name, new_name, new_nationality, new_club = args[1:]
-        bin_file = os.path.basename(bin_file.strip())
-        try:
-            process = subprocess.Popen(["./programaTrab"], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-            edit_cmd = f"7 {bin_file} \"{old_name}\" \"{new_name}\" \"{new_nationality}\" \"{new_club}\"\n"
-            stdout, stderr = process.communicate(input=edit_cmd)
             return stdout if process.returncode == 0 else stderr
         except Exception as e:
             return f"Error: {str(e)}"
