@@ -129,7 +129,7 @@ public class FIFAApp extends JFrame {
                             Player finalPlayer = player;
                             SwingUtilities.invokeLater(() -> addPlayerToPanel(finalPlayer));
                         }
-                        player = new Player(line.substring(16), "", "");
+                        player = new Player(line.substring(16), "", "", -1); // Não temos id aqui, apenas o nome
                     } else if (line.startsWith("Nacionalidade do Jogador: ")) {
                         if (player != null) {
                             player.setNationality(line.substring(25));
@@ -224,7 +224,7 @@ public class FIFAApp extends JFrame {
                             Player finalPlayer = player;
                             SwingUtilities.invokeLater(() -> addPlayerToPanel(finalPlayer));
                         }
-                        player = new Player(line.substring(16), "", "");
+                        player = new Player(line.substring(16), "", "", -1); // Não temos id aqui, apenas o nome
                     } else if (line.startsWith("Nacionalidade do Jogador: ")) {
                         if (player != null) {
                             player.setNationality(line.substring(25));
@@ -285,27 +285,32 @@ public class FIFAApp extends JFrame {
 
     private void removePlayer() {
         if (selectedPlayer != null && currentBinFileName != null) {
-            String csvRemoveCommand = String.format("remove_csv;%s;\"%s\"", currentBinFileName.replace(".bin", ".csv"), selectedPlayer.getName());
-            String removeCommand = String.format("remove;%s;%s;1;nome;\"%s\"", currentBinFileName, currentBinFileName.replace(".bin", ".idx"), selectedPlayer.getName());
-
-            out.println(csvRemoveCommand);
+            // Construir comando de remoção usando o ID do jogador
+            String removeCommand = String.format("remove;%s;%s;1;id;%d",
+                    currentBinFileName, 
+                    currentBinFileName.replace(".bin", ".idx"), 
+                    selectedPlayer.getId());
+    
             out.println(removeCommand);
-
+    
             try {
-                StringBuilder responseBuilder = new StringBuilder();
-                String responseLine;
-                while ((responseLine = in.readLine()) != null) {
-                    responseBuilder.append(responseLine);
-                    if (responseLine.contains("<END_OF_MESSAGE>")) {
-                        break;
-                    }
-                }
-
-                String response = responseBuilder.toString();
-                if (response.contains("OK") || !response.contains("Error")) {
+                String response = in.readLine();
+                if (response != null && (response.equals("OK") || !response.contains("Error"))) {
+                    // Remover o botão que representa o jogador da interface
                     SwingUtilities.invokeLater(() -> {
-                        playerPanel.removeAll();
-                        listAllPlayers();
+                        Component[] components = playerPanel.getComponents();
+                        for (Component component : components) {
+                            if (component instanceof JButton) {
+                                JButton button = (JButton) component;
+                                // Aqui precisamos identificar o botão pelo nome (ou outra propriedade única do jogador)
+                                if (button.getText().equals(selectedPlayer.getName())) {
+                                    playerPanel.remove(button);
+                                    break;
+                                }
+                            }
+                        }
+                        playerPanel.revalidate();
+                        playerPanel.repaint();
                         selectedPlayerLabel.setText("Jogador removido: " + selectedPlayer.getName());
                     });
                 } else {
@@ -316,7 +321,7 @@ public class FIFAApp extends JFrame {
                 SwingUtilities.invokeLater(() -> selectedPlayerLabel.setText("Erro de comunicação com o servidor."));
             }
         }
-    }
+    }    
 
     private void connectToServer() {
         try {
@@ -337,15 +342,21 @@ class Player {
     private String name;
     private String nationality;
     private String club;
+    private int id;
 
-    public Player(String name, String nationality, String club) {
+    public Player(String name, String nationality, String club, int id) {
         this.name = name;
         this.nationality = nationality;
         this.club = club;
+        this.id = id;
     }
 
     public String getName() {
         return name;
+    }
+
+    public int getId() {
+        return id;
     }
 
     public String getNationality() {
