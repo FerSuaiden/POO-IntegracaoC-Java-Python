@@ -41,6 +41,9 @@ class RemovedPlayersList:
     def is_empty(self):
         return self.head is None
 
+# Lista de jogadores removidos global
+removed_players_list = RemovedPlayersList()
+
 def handle_client(client_socket):
     try:
         while True:
@@ -59,6 +62,7 @@ def handle_client(client_socket):
         client_socket.close()
 
 def process_request(request):
+    global removed_players_list
     args = request.split(';')
     command = args[0]
 
@@ -113,10 +117,21 @@ def process_request(request):
         bin_file, index_file, num_removals, *removal_fields = args[1:]
         bin_file = os.path.basename(bin_file.strip())
         index_file = os.path.basename(index_file.strip())
+        
+        # Verificar se o jogador já foi removido
+        player_id = int(removal_fields[1])  # Assumindo que o ID do jogador está na segunda posição
+        if removed_players_list.contains(player_id):
+            return "Jogador já removido anteriormente."
+
         try:
             process = subprocess.Popen(["./programaTrab"], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
             removal_cmd = f"5 {bin_file} {index_file} {num_removals} {' '.join(removal_fields)}\n"
             stdout, stderr = process.communicate(input=removal_cmd)
+
+            # Se a remoção foi bem-sucedida, adicione à lista de removidos
+            if process.returncode == 0:
+                removed_players_list.add(player_id)
+
             return stdout if process.returncode == 0 else stderr
         except Exception as e:
             return f"Error: {str(e)}"

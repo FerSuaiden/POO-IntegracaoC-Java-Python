@@ -1,8 +1,8 @@
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
-import java.net.Socket;
 import java.io.*;
+import java.net.Socket;
 
 public class FIFAApp extends JFrame {
     private JTextField idField, ageField, nameField, nationalityField, clubField;
@@ -16,7 +16,11 @@ public class FIFAApp extends JFrame {
     private String currentBinFileName;
     private Player selectedPlayer;
 
+    private static FIFAApp instance;
+
     public FIFAApp() {
+        instance = this; // Para referenciar esta instância de FIFAApp
+
         setTitle("FIFA Player Manager");
         setSize(600, 600);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -75,13 +79,13 @@ public class FIFAApp extends JFrame {
 
         add(new JLabel("Editar Nome:"));
         add(editNameField);
-        add(new JLabel("Edit Nacionalidade:"));
+        add(new JLabel("Editar Nacionalidade:"));
         add(editNationalityField);
-        add(new JLabel("Edit Clube:"));
+        add(new JLabel("Editar Clube:"));
         add(editClubField);
 
         // Edit and Remove Buttons
-        editButton = new JButton("Salvar");
+        editButton = new JButton("Editar Jogador");
         editButton.addActionListener(e -> new Thread(() -> editPlayer()).start());
         add(editButton);
 
@@ -91,6 +95,10 @@ public class FIFAApp extends JFrame {
 
         // Connect to Server
         connectToServer();
+    }
+
+    public static FIFAApp getInstance() {
+        return instance;
     }
 
     private void loadFile() {
@@ -162,7 +170,7 @@ public class FIFAApp extends JFrame {
         JButton playerButton = new JButton(player.getName());
         playerButton.addActionListener(e -> {
             selectedPlayer = player;
-            selectedPlayerLabel.setText("Selected Player: " + player.getName());
+            selectedPlayerLabel.setText("Jogador Selecionado: " + player.getName());
             editNameField.setText(player.getName());
             editNationalityField.setText(player.getNationality());
             editClubField.setText(player.getClub());
@@ -255,44 +263,44 @@ public class FIFAApp extends JFrame {
 
     private void editPlayer() {
         if (selectedPlayer != null && currentBinFileName != null) {
-            String newName = editNameField.getText().trim();
-            String newNationality = editNationalityField.getText().trim();
-            String newClub = editClubField.getText().trim();
-
-            String command = String.format("edit;%s;%s;%s;%s;%s", 
-                currentBinFileName, 
-                selectedPlayer.getName(), 
-                newName, 
-                newNationality, 
-                newClub);
-
-            out.println(command);
-            try {
-                String response = in.readLine();
-                if (response != null && response.equals("OK")) {
-                    selectedPlayer.setName(newName);
-                    selectedPlayer.setNationality(newNationality);
-                    selectedPlayer.setClub(newClub);
-                    SwingUtilities.invokeLater(() -> selectedPlayerLabel.setText("Jogador atualizado: " + newName));
-                } else {
-                    SwingUtilities.invokeLater(() -> selectedPlayerLabel.setText("Falha em atualizar jogador."));
-                }
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+            // Abrir a janela de edição
+            new EditPlayerDialog(this, selectedPlayer);
         }
+    }
+
+    public void updatePlayer(Player updatedPlayer) {
+        // Remover o jogador antigo da lista
+        SwingUtilities.invokeLater(() -> {
+            Component[] components = playerPanel.getComponents();
+            for (Component component : components) {
+                if (component instanceof JButton) {
+                    JButton button = (JButton) component;
+                    if (button.getText().equals(selectedPlayer.getName())) {
+                        playerPanel.remove(button);
+                        break;
+                    }
+                }
+            }
+
+            // Adicionar o jogador atualizado à lista
+            addPlayerToPanel(updatedPlayer);
+
+            playerPanel.revalidate();
+            playerPanel.repaint();
+            selectedPlayerLabel.setText("Jogador atualizado: " + updatedPlayer.getName());
+        });
     }
 
     private void removePlayer() {
         if (selectedPlayer != null && currentBinFileName != null) {
             // Construir comando de remoção usando o ID do jogador
             String removeCommand = String.format("remove;%s;%s;1;id;%d",
-                    currentBinFileName, 
-                    currentBinFileName.replace(".bin", ".idx"), 
+                    currentBinFileName,
+                    currentBinFileName.replace(".bin", ".idx"),
                     selectedPlayer.getId());
-    
+
             out.println(removeCommand);
-    
+
             try {
                 String response = in.readLine();
                 if (response != null && (response.equals("OK") || !response.contains("Error"))) {
@@ -321,7 +329,7 @@ public class FIFAApp extends JFrame {
                 SwingUtilities.invokeLater(() -> selectedPlayerLabel.setText("Erro de comunicação com o servidor."));
             }
         }
-    }    
+    }
 
     private void connectToServer() {
         try {
@@ -336,53 +344,155 @@ public class FIFAApp extends JFrame {
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> new FIFAApp().setVisible(true));
     }
-}
 
-class Player {
-    private String name;
-    private String nationality;
-    private String club;
-    private int id;
+    class Player {
+        private String name;
+        private String nationality;
+        private String club;
+        private int id;
 
-    public Player(String name, String nationality, String club, int id) {
-        this.name = name;
-        this.nationality = nationality;
-        this.club = club;
-        this.id = id;
+        public Player(String name, String nationality, String club, int id) {
+            this.name = name;
+            this.nationality = nationality;
+            this.club = club;
+            this.id = id;
+        }
+
+        public String getName() {
+            return name;
+        }
+
+        public int getId() {
+            return id;
+        }
+
+        public String getNationality() {
+            return nationality;
+        }
+
+        public String getClub() {
+            return club;
+        }
+
+        public void setName(String name) {
+            this.name = name;
+        }
+
+        public void setNationality(String nationality) {
+            this.nationality = nationality;
+        }
+
+        public void setClub(String club) {
+            this.club = club;
+        }
+
+        @Override
+        public String toString() {
+            return "Nome do Jogador: " + name + "\n" +
+                   "Nacionalidade do Jogador: " + nationality + "\n" +
+                   "Clube do Jogador: " + club;
+        }
     }
 
-    public String getName() {
-        return name;
+    public class EditPlayerDialog extends JDialog {
+        private JTextField editNameField, editNationalityField, editClubField;
+        private Player player; // Referência para o jogador a ser editado
+    
+        public EditPlayerDialog(JFrame parent, Player player) {
+            super(parent, "Editar Jogador", true);
+            this.player = player;
+    
+            JPanel panel = new JPanel(new GridLayout(4, 2));
+            panel.add(new JLabel("Nome:"));
+            editNameField = new JTextField(player.getName());
+            panel.add(editNameField);
+            panel.add(new JLabel("Nacionalidade:"));
+            editNationalityField = new JTextField(player.getNationality());
+            panel.add(editNationalityField);
+            panel.add(new JLabel("Clube:"));
+            editClubField = new JTextField(player.getClub());
+            panel.add(editClubField);
+    
+            JButton saveButton = new JButton("Salvar");
+            saveButton.addActionListener(e -> {
+                savePlayer();
+                dispose();
+            });
+    
+            panel.add(saveButton);
+            getContentPane().add(panel);
+            pack();
+            setLocationRelativeTo(parent);
+            setVisible(true);
+        }
+    
+        private void savePlayer() {
+            String newName = editNameField.getText().trim();
+            String newNationality = editNationalityField.getText().trim();
+            String newClub = editClubField.getText().trim();
+    
+            // Atualizar os dados do jogador
+            player.setName(newName);
+            player.setNationality(newNationality);
+            player.setClub(newClub);
+    
+            // Chamar o método da classe principal para atualizar o jogador na interface
+            updatePlayer(player);
+    
+            // Enviar os dados atualizados para o servidor
+            sendUpdatedPlayerToServer(player);
+        }
+    
+        private void sendUpdatedPlayerToServer(Player player) {
+            // Construir a mensagem para enviar ao servidor
+            String updateCommand = String.format("update;%s;%d;%s;%s;%s",
+                    FIFAApp.getInstance().getCurrentBinFileName(),
+                    player.getId(),
+                    player.getName(),
+                    player.getNationality(),
+                    player.getClub());
+    
+            // Enviar a mensagem ao servidor via socket
+            try {
+                FIFAApp.getInstance().getOut().println(updateCommand);
+                String response = FIFAApp.getInstance().getIn().readLine();
+                if (response != null && (response.equals("OK") || !response.contains("Error"))) {
+                    // Atualização bem-sucedida, se necessário, tratar a resposta do servidor
+                } else {
+                    handleUpdateFailure(response);
+                }
+            } catch (IOException e) {
+                handleCommunicationError(e);
+            }
+        }
+    
+        private void handleUpdateFailure(String response) {
+            // Lidar com falha na atualização
+            SwingUtilities.invokeLater(() -> {
+                JOptionPane.showMessageDialog(this, "Falha na atualização do jogador. Resposta do servidor: " + response,
+                        "Erro de Atualização", JOptionPane.ERROR_MESSAGE);
+            });
+        }
+    
+        private void handleCommunicationError(IOException e) {
+            // Tratar erro de comunicação com o servidor
+            SwingUtilities.invokeLater(() -> {
+                JOptionPane.showMessageDialog(this, "Erro de comunicação com o servidor: " + e.getMessage(),
+                        "Erro de Comunicação", JOptionPane.ERROR_MESSAGE);
+            });
+        }
     }
 
-    public int getId() {
-        return id;
+    public String getCurrentBinFileName() {
+        return currentBinFileName;
     }
-
-    public String getNationality() {
-        return nationality;
+    
+    public PrintWriter getOut() {
+        return out;
     }
-
-    public String getClub() {
-        return club;
+    
+    public BufferedReader getIn() {
+        return in;
     }
-
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public void setNationality(String nationality) {
-        this.nationality = nationality;
-    }
-
-    public void setClub(String club) {
-        this.club = club;
-    }
-
-    @Override
-    public String toString() {
-        return "Nome do Jogador: " + name + "\n" +
-               "Nacionalidade do Jogador: " + nationality + "\n" +
-               "Clube do Jogador: " + club;
-    }
+    
 }
