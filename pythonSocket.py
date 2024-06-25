@@ -24,16 +24,31 @@ def process_request(request):
     args = request.split(';')
     command = args[0]
 
+
     if command == "load":
         _, csv_file, bin_file = args
         csv_file = os.path.basename(csv_file.strip())
         bin_file = os.path.basename(bin_file.strip())
-        print(f"Loading CSV: {csv_file} to Binary: {bin_file}")
+        bin_index_file = bin_file.replace(".bin", "_index.bin")
+        print(f"Loading CSV: {csv_file} to Binary: {bin_file} and {bin_index_file}")
         try:
-            process = subprocess.Popen(["./programaTrab"], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-            command_input = f"1 {csv_file} {bin_file}\n"
-            stdout, stderr = process.communicate(input=command_input)
-            return stdout if process.returncode == 0 else stderr
+            # Create main .bin file
+            process_main = subprocess.Popen(["./programaTrab"], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            command_input_main = f"1 {csv_file} {bin_file}\n"
+            stdout_main, stderr_main = process_main.communicate(input=command_input_main)
+
+            if process_main.returncode != 0:
+                return stderr_main
+
+            # Create index .bin file
+            process_index = subprocess.Popen(["./programaTrab"], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            command_input_index = f"4 {bin_file} {bin_index_file}\n"
+            stdout_index, stderr_index = process_index.communicate(input=command_input_index)
+
+            if process_index.returncode != 0:
+                return stderr_index
+
+            return stdout_main + stdout_index
         except Exception as e:
             return f"Error: {str(e)}"
 
@@ -72,13 +87,15 @@ def process_request(request):
             return f"Error: {str(e)}"
 
     elif command == "remove":
-        bin_file, index_file, num_removals, *removal_fields = args[1:]
+        bin_file, num_fields, *fields = args[1:]
         bin_file = os.path.basename(bin_file.strip())
-        index_file = os.path.basename(index_file.strip())
         try:
             process = subprocess.Popen(["./programaTrab"], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-            removal_cmd = f"5 {bin_file} {index_file} {num_removals} {len(removal_fields)} {' '.join(removal_fields)}\n"
-            stdout, stderr = process.communicate(input=removal_cmd)
+            command_input = f"5 {bin_file} {bin_file.replace('.bin', '_index.bin')} {num_fields} {' '.join(fields)}\n"
+            print(f"Command input: {command_input}")
+            stdout, stderr = process.communicate(input=command_input)
+            print(f"Remove command stdout: {stdout}")
+            print(f"Remove command stderr: {stderr}")
             return stdout if process.returncode == 0 else stderr
         except Exception as e:
             return f"Error: {str(e)}"

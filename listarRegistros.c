@@ -53,6 +53,7 @@ void listarRegistros(const char* nomeArquivoBinario) {
         if (registro.removido == '0') {
             
             // Exibição dos dados do registro
+            printf("ID jogador: %d\n", registro.id);
             printf("Nome do Jogador: %s\n", registro.nomeJogador[0] ? registro.nomeJogador : "SEM DADO");
             printf("Nacionalidade do Jogador: %s\n", registro.nacionalidade[0] ? registro.nacionalidade : "SEM DADO");
             printf("Clube do Jogador: %s\n", registro.nomeClube[0] ? registro.nomeClube : "SEM DADO");

@@ -1,6 +1,5 @@
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.*;
 import java.net.Socket;
 import java.io.*;
 
@@ -8,8 +7,6 @@ public class FIFAApp extends JFrame {
     private JTextField idField, ageField, nameField, nationalityField, clubField;
     private JPanel playerPanel;
     private JLabel selectedPlayerLabel;
-    private JTextField editNameField, editNationalityField, editClubField;
-    private JButton editButton, removeButton;
     private Socket socket;
     private PrintWriter out;
     private BufferedReader in;
@@ -36,11 +33,11 @@ public class FIFAApp extends JFrame {
         fileMenu.add(listPlayersItem);
 
         // Search Fields
-        idField = new JTextField(10);
-        ageField = new JTextField(10);
-        nameField = new JTextField(10);
-        nationalityField = new JTextField(10);
-        clubField = new JTextField(10);
+        idField = new JTextField(20);
+        ageField = new JTextField(20);
+        nameField = new JTextField(20);
+        nationalityField = new JTextField(20);
+        clubField = new JTextField(20);
 
         add(new JLabel("Id:"));
         add(idField);
@@ -67,27 +64,6 @@ public class FIFAApp extends JFrame {
         // Selected Player Label
         selectedPlayerLabel = new JLabel("Jogador Selecionado: ");
         add(selectedPlayerLabel);
-
-        // Edit Player Fields
-        editNameField = new JTextField(15);
-        editNationalityField = new JTextField(15);
-        editClubField = new JTextField(15);
-
-        add(new JLabel("Editar Nome:"));
-        add(editNameField);
-        add(new JLabel("Edit Nacionalidade:"));
-        add(editNationalityField);
-        add(new JLabel("Edit Clube:"));
-        add(editClubField);
-
-        // Edit and Remove Buttons
-        editButton = new JButton("Salvar");
-        editButton.addActionListener(e -> new Thread(() -> editPlayer()).start());
-        add(editButton);
-
-        removeButton = new JButton("Remover Jogador");
-        removeButton.addActionListener(e -> new Thread(() -> removePlayer()).start());
-        add(removeButton);
 
         // Connect to Server
         connectToServer();
@@ -124,12 +100,16 @@ public class FIFAApp extends JFrame {
                 SwingUtilities.invokeLater(() -> playerPanel.removeAll());
 
                 while ((line = in.readLine()) != null && !line.equals("<END_OF_MESSAGE>")) {
-                    if (line.startsWith("Nome do Jogador: ")) {
+                    if (line.startsWith("ID jogador: ")) {
                         if (player != null) {
                             Player finalPlayer = player;
                             SwingUtilities.invokeLater(() -> addPlayerToPanel(finalPlayer));
                         }
-                        player = new Player(line.substring(16), "", "");
+                        player = new Player(Integer.parseInt(line.substring(12)), "", "", "");
+                    } else if (line.startsWith("Nome do Jogador: ")) {
+                        if (player != null) {
+                            player.setName(line.substring(16));
+                        }
                     } else if (line.startsWith("Nacionalidade do Jogador: ")) {
                         if (player != null) {
                             player.setNationality(line.substring(25));
@@ -162,10 +142,7 @@ public class FIFAApp extends JFrame {
         JButton playerButton = new JButton(player.getName());
         playerButton.addActionListener(e -> {
             selectedPlayer = player;
-            selectedPlayerLabel.setText("Selected Player: " + player.getName());
-            editNameField.setText(player.getName());
-            editNationalityField.setText(player.getNationality());
-            editClubField.setText(player.getClub());
+            showPlayerDialog(player);
         });
 
         GridBagConstraints gbc = new GridBagConstraints();
@@ -175,6 +152,51 @@ public class FIFAApp extends JFrame {
         gbc.weightx = 1.0;
 
         playerPanel.add(playerButton, gbc);
+    }
+
+    private void showPlayerDialog(Player player) {
+        JDialog dialog = new JDialog(this, "Detalhes do Jogador", true);
+        dialog.setLayout(new GridLayout(6, 1));
+
+        JLabel idLabel = new JLabel("ID: " + player.getId());
+        JLabel nameLabel = new JLabel("Nome: " + player.getName());
+        JLabel nationalityLabel = new JLabel("Nacionalidade: " + player.getNationality());
+        JLabel clubLabel = new JLabel("Clube: " + player.getClub());
+
+        dialog.add(idLabel);
+        dialog.add(nameLabel);
+        dialog.add(nationalityLabel);
+        dialog.add(clubLabel);
+
+        JPanel buttonPanel = new JPanel();
+        buttonPanel.setLayout(new FlowLayout());
+
+        JButton insertButton = new JButton("Inserir");
+        insertButton.addActionListener(e -> {
+            // Insert player logic
+            dialog.dispose();
+        });
+
+        JButton removeButton = new JButton("Remover");
+        removeButton.addActionListener(e -> {
+            new Thread(() -> removePlayer(player)).start();
+            dialog.dispose();
+        });
+
+        JButton updateButton = new JButton("Alterar");
+        updateButton.addActionListener(e -> {
+            // Update player logic
+            dialog.dispose();
+        });
+
+        buttonPanel.add(insertButton);
+        buttonPanel.add(removeButton);
+        buttonPanel.add(updateButton);
+
+        dialog.add(buttonPanel);
+        dialog.pack();
+        dialog.setLocationRelativeTo(this);
+        dialog.setVisible(true);
     }
 
     private void searchPlayers() {
@@ -219,12 +241,16 @@ public class FIFAApp extends JFrame {
                 SwingUtilities.invokeLater(() -> playerPanel.removeAll());
 
                 while ((line = in.readLine()) != null && !line.equals("<END_OF_MESSAGE>")) {
-                    if (line.startsWith("Nome do Jogador: ")) {
+                    if (line.startsWith("ID jogador: ")) {
                         if (player != null) {
                             Player finalPlayer = player;
                             SwingUtilities.invokeLater(() -> addPlayerToPanel(finalPlayer));
                         }
-                        player = new Player(line.substring(16), "", "");
+                        player = new Player(Integer.parseInt(line.substring(12)), "", "", "");
+                    } else if (line.startsWith("Nome do Jogador: ")) {
+                        if (player != null) {
+                            player.setName(line.substring(16));
+                        }
                     } else if (line.startsWith("Nacionalidade do Jogador: ")) {
                         if (player != null) {
                             player.setNationality(line.substring(25));
@@ -253,72 +279,34 @@ public class FIFAApp extends JFrame {
         }
     }
 
-    private void editPlayer() {
-        if (selectedPlayer != null && currentBinFileName != null) {
-            String newName = editNameField.getText().trim();
-            String newNationality = editNationalityField.getText().trim();
-            String newClub = editClubField.getText().trim();
+    private void removePlayer(Player player) {
+        if (currentBinFileName != null) {
+            SwingUtilities.invokeLater(() -> selectedPlayerLabel.setText("Jogador removido: " + player.getName()));
 
-            String command = String.format("edit;%s;%s;%s;%s;%s", 
-                currentBinFileName, 
-                selectedPlayer.getName(), 
-                newName, 
-                newNationality, 
-                newClub);
+            StringBuilder removeCommand = new StringBuilder("remove;" + currentBinFileName + ";1");
+    
 
-            out.println(command);
+            removeCommand.insert(removeCommand.indexOf(";1") + 2, "\n" + "1" + " ");
+            removeCommand.append("id ").append(player.getId());
+
+            String commandString = removeCommand.toString().trim();
+            System.out.println("Sending remove command: " + commandString);
+            out.println(commandString);
             try {
                 String response = in.readLine();
-                if (response != null && response.equals("OK")) {
-                    selectedPlayer.setName(newName);
-                    selectedPlayer.setNationality(newNationality);
-                    selectedPlayer.setClub(newClub);
-                    SwingUtilities.invokeLater(() -> selectedPlayerLabel.setText("Jogador atualizado: " + newName));
+                System.out.println("Remove response: " + response);
+                if (response != null) {
+                    SwingUtilities.invokeLater(() -> selectedPlayerLabel.setText("Jogadores correspondentes removidos!"));
                 } else {
-                    SwingUtilities.invokeLater(() -> selectedPlayerLabel.setText("Falha em atualizar jogador."));
+                    SwingUtilities.invokeLater(() -> selectedPlayerLabel.setText("Falha ao remover jogador."));
                 }
             } catch (IOException e) {
                 e.printStackTrace();
             }
+        } else {
+            SwingUtilities.invokeLater(() -> selectedPlayerLabel.setText("Nenhum jogador selecionado ou arquivo binário carregado."));
         }
     }
-
-    private void removePlayer() {
-        if (selectedPlayer != null && currentBinFileName != null) {
-            String command = String.format("remove;%s;%s;1;nome;\"%s\"", 
-                currentBinFileName, 
-                currentBinFileName.replace(".bin", ".idx"), 
-                selectedPlayer.getName());
-    
-            out.println(command);
-            try {
-                // Read the response from the server
-                StringBuilder responseBuilder = new StringBuilder();
-                String responseLine;
-                while ((responseLine = in.readLine()) != null) {
-                    responseBuilder.append(responseLine);
-                    // Check for the end of message indicator
-                    if (responseLine.contains("<END_OF_MESSAGE>")) {
-                        break;
-                    }
-                }
-    
-                String response = responseBuilder.toString();
-                if (response.contains("OK") || !response.contains("Error")) {
-                    SwingUtilities.invokeLater(() -> {
-                        playerPanel.removeAll();
-                        listAllPlayers();
-                        selectedPlayerLabel.setText("Jogador removido: " + selectedPlayer.getName());
-                    });
-                } else {
-                    SwingUtilities.invokeLater(() -> selectedPlayerLabel.setText("Falha em remover jogador. Resposta: " + response));
-                }
-            } catch (IOException e) {
-                e.printStackTrace();
-                SwingUtilities.invokeLater(() -> selectedPlayerLabel.setText("Erro de comunicação com o servidor."));
-            }
-        }
-    }    
 
     private void connectToServer() {
         try {
@@ -336,14 +324,20 @@ public class FIFAApp extends JFrame {
 }
 
 class Player {
+    private int id;
     private String name;
     private String nationality;
     private String club;
 
-    public Player(String name, String nationality, String club) {
+    public Player(int id, String name, String nationality, String club) {
+        this.id = id;
         this.name = name;
         this.nationality = nationality;
         this.club = club;
+    }
+
+    public int getId() {
+        return id;
     }
 
     public String getName() {
@@ -356,6 +350,10 @@ class Player {
 
     public String getClub() {
         return club;
+    }
+
+    public void setId(int id) {
+        this.id = id;
     }
 
     public void setName(String name) {
@@ -372,7 +370,8 @@ class Player {
 
     @Override
     public String toString() {
-        return "Nome do Jogador: " + name + "\n" +
+        return "ID do Jogador: " + id + "\n" +
+               "Nome do Jogador: " + name + "\n" +
                "Nacionalidade do Jogador: " + nationality + "\n" +
                "Clube do Jogador: " + club;
     }
