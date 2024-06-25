@@ -1,10 +1,9 @@
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.*;
 import java.io.*;
 import java.net.Socket;
 
-public class FIFAApp extends JFrame {
+public class Interface extends JFrame {
     private JTextField idField, ageField, nameField, nationalityField, clubField;
     private JPanel playerPanel;
     private JLabel selectedPlayerLabel;
@@ -16,10 +15,10 @@ public class FIFAApp extends JFrame {
     private String currentBinFileName;
     private Player selectedPlayer;
 
-    private static FIFAApp instance;
+    private static Interface instance;
 
-    public FIFAApp() {
-        instance = this; // Para referenciar esta instância de FIFAApp
+    public Interface() {
+        instance = this;
 
         setTitle("FIFA Player Manager");
         setSize(600, 600);
@@ -39,13 +38,14 @@ public class FIFAApp extends JFrame {
         listPlayersItem.addActionListener(e -> new Thread(() -> listAllPlayers()).start());
         fileMenu.add(listPlayersItem);
 
-        // Search Fields
+        // Campos de Busca
         idField = new JTextField(10);
         ageField = new JTextField(10);
         nameField = new JTextField(10);
         nationalityField = new JTextField(10);
         clubField = new JTextField(10);
 
+        // Adicionando os campos e labels alinhados à esquerda
         add(new JLabel("Id:"));
         add(idField);
         add(new JLabel("Idade:"));
@@ -57,22 +57,38 @@ public class FIFAApp extends JFrame {
         add(new JLabel("Clube:"));
         add(clubField);
 
-        // Search Button
-        JButton searchButton = new JButton("Buscar");
-        searchButton.addActionListener(e -> new Thread(() -> searchPlayers()).start());
-        add(searchButton);
+        // Definindo um novo painel para os botões com layout FlowLayout
+        JPanel buttonsPanel = new JPanel(new FlowLayout());
 
-        // Player Panel
+        // Botão de Busca
+        JButton searchButton = new JButton("Procurar");
+        searchButton.addActionListener(e -> new Thread(() -> searchPlayers()).start());
+        buttonsPanel.add(searchButton);
+
+        // Botão de Edição
+        editButton = new JButton("Editar Jogador");
+        editButton.addActionListener(e -> new Thread(() -> editPlayer()).start());
+        buttonsPanel.add(editButton);
+
+        // Botão de Remoção
+        removeButton = new JButton("Remover Jogador");
+        removeButton.addActionListener(e -> new Thread(() -> removePlayer()).start());
+        buttonsPanel.add(removeButton);
+
+        // Adicionando o painel de botões ao conteúdo principal
+        add(buttonsPanel);
+
+        // Selecionar Jogador
+        selectedPlayerLabel = new JLabel("Jogador Selecionado: ");
+        add(selectedPlayerLabel);
+
+        // Painel do Jogador
         playerPanel = new JPanel(new GridBagLayout());
         JScrollPane scrollPane = new JScrollPane(playerPanel);
         scrollPane.setPreferredSize(new Dimension(580, 200));
         add(scrollPane);
 
-        // Selected Player Label
-        selectedPlayerLabel = new JLabel("Jogador Selecionado: ");
-        add(selectedPlayerLabel);
-
-        // Edit Player Fields
+        // Campos de Edição do Jogador
         editNameField = new JTextField(15);
         editNationalityField = new JTextField(15);
         editClubField = new JTextField(15);
@@ -84,20 +100,12 @@ public class FIFAApp extends JFrame {
         add(new JLabel("Editar Clube:"));
         add(editClubField);
 
-        // Edit and Remove Buttons
-        editButton = new JButton("Editar Jogador");
-        editButton.addActionListener(e -> new Thread(() -> editPlayer()).start());
-        add(editButton);
-
-        removeButton = new JButton("Remover Jogador");
-        removeButton.addActionListener(e -> new Thread(() -> removePlayer()).start());
-        add(removeButton);
-
-        // Connect to Server
+        // Conectar com o Server
         connectToServer();
+
     }
 
-    public static FIFAApp getInstance() {
+    public static Interface getInstance() {
         return instance;
     }
 
@@ -342,7 +350,7 @@ public class FIFAApp extends JFrame {
     }
 
     public static void main(String[] args) {
-        SwingUtilities.invokeLater(() -> new FIFAApp().setVisible(true));
+        SwingUtilities.invokeLater(() -> new Interface().setVisible(true));
     }
 
     class Player {
@@ -446,7 +454,7 @@ public class FIFAApp extends JFrame {
         private void sendUpdatedPlayerToServer(Player player) {
             // Construir a mensagem para enviar ao servidor
             String updateCommand = String.format("update;%s;%d;%s;%s;%s",
-                    FIFAApp.getInstance().getCurrentBinFileName(),
+                    Interface.getInstance().getCurrentBinFileName(),
                     player.getId(),
                     player.getName(),
                     player.getNationality(),
@@ -454,8 +462,8 @@ public class FIFAApp extends JFrame {
     
             // Enviar a mensagem ao servidor via socket
             try {
-                FIFAApp.getInstance().getOut().println(updateCommand);
-                String response = FIFAApp.getInstance().getIn().readLine();
+                Interface.getInstance().getOut().println(updateCommand);
+                String response = Interface.getInstance().getIn().readLine();
                 if (response != null && (response.equals("OK") || !response.contains("Error"))) {
                     // Atualização bem-sucedida, se necessário, tratar a resposta do servidor
                 } else {
